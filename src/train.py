@@ -17,13 +17,16 @@ def main():
     parser.add_argument('--b2', type=float, default=0.9)
     parser.add_argument('--lambda-adv', type=float, default=1e-2)
     parser.add_argument('--nthread', default=4, type=int)
+    parser.add_argument('--log-every', default=1, type=int)
 
     args = parser.parse_args()
     pl.seed_everything(args.seed)
 
     model = Boundless_GAN(args)
 
+    wandb_logger = pl.loggers.WandbLogger(project='Boundless_HSE')
     trainer = pl.Trainer(max_epochs=args.epochs,
+                         logger=wandb_logger,
                          accelerator="auto")
 
     dataset = ExampleDataset()
