@@ -9,12 +9,12 @@ class ExampleDataset(Dataset):
 
         self.input_tensor = torch.cat([self.data, self.mask], dim=1)
         self.inception_embeds = torch.zeros((2, 1000))
-        
+
     def __len__(self):
         return len(self.data)
-    
+
     def __getitem__(self, item):
         return {
-            "input_tensor" : self.input_tensor[item],
+            "input_tensor": self.input_tensor[item],
             "inception_embeds": self.inception_embeds[item]
         }
