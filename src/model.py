@@ -1,4 +1,5 @@
 import torch
+import wandb
 import torch.nn as nn
 from torch.nn.functional import elu, instance_norm
 
@@ -225,6 +226,11 @@ class Boundless_GAN(pl.LightningModule):
         optimizer_d.step()
         optimizer_d.zero_grad()
         self.untoggle_optimizer(optimizer_d)
+
+        if batch_idx % self.args.log_every == 0:
+            image = wandb.Image(fake_image.cpu().detach().numpy().transpose(0, 2, 3, 1), caption="Fake image")
+            wandb.log({"example":  image})
+            wandb.log({'Current generator loss': loss_g, 'Current discriminator loss': loss_d})
 
     def configure_optimizers(self):
         optimizer_G = torch.optim.Adam(self.generator.parameters(), lr=self.args.lr_g, betas=(self.args.b1, self.args.b2))
