@@ -40,6 +40,7 @@ def main():
     )
     train_loader = DataLoader(dataset, batch_size=args.batch_size, num_workers=28)
 
+
     trainer.fit(model, train_loader)
 
 

@@ -16,23 +16,29 @@ class Flatten(nn.Module):
         return input.view(input.size(0), -1)
 
 
+
+class Clip(nn.Module):
+    def forward(self, input):
+        return torch.clamp(input, min=-1, max=1)
+
+
 class GatedConv(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, groups=1, bias=True,):
         super(GatedConv, self).__init__()
-        self.conv2d = nn.Conv2d(in_channels, 
-                                out_channels, 
-                                kernel_size, 
-                                stride, 
-                                padding, 
-                                dilation, 
-                                groups, 
+        self.conv2d = nn.Conv2d(in_channels,
+                                out_channels,
+                                kernel_size,
+                                stride,
+                                padding,
+                                dilation,
+                                groups,
                                 bias)
-        self.mask_conv2d = nn.Conv2d(in_channels, 
-                                     out_channels, 
-                                     kernel_size, 
-                                     stride, 
-                                     padding, 
-                                     dilation, 
+        self.mask_conv2d = nn.Conv2d(in_channels,
+                                     out_channels,
+                                     kernel_size,
+                                     stride,
+                                     padding,
+                                     dilation,
                                      groups,
                                      bias)
         self.sigmoid = nn.Sigmoid()
@@ -77,6 +83,8 @@ class Generator(pl.LightningModule):
 
         self.final_conv = nn.Conv2d(16, 3, kernel_size=3, stride=1, padding=1)
 
+        self.clip = Clip()
+
     def forward(self, x):
         out1 = self.cache_GC_1(x)
         out2 = self.cache_GC_2(out1)
@@ -104,6 +112,8 @@ class Generator(pl.LightningModule):
         out = self.GC_5(out)
 
         out = self.final_conv(out)
+
+        out = self.clip(out)
         return out
 
 
@@ -197,6 +207,7 @@ class Boundless_GAN(pl.LightningModule):
         optimizer_g, optimizer_d = self.optimizers()
 
         input_tensor = torch.Tensor(batch["input_tensor"]).to(torch.float32)
+
         cond = torch.Tensor(batch["inception_embeds"])
         
         real_image = input_tensor[:, :3, :, :]
@@ -205,6 +216,7 @@ class Boundless_GAN(pl.LightningModule):
 
         
         self.toggle_optimizer(optimizer_g, 0)
+
 
         G_output = self.generator_step(input_tensor, real_image, masked_image, mask, cond)
         loss_g =  G_output['loss_G']
@@ -215,6 +227,7 @@ class Boundless_GAN(pl.LightningModule):
         self.untoggle_optimizer(optimizer_g)
 
         self.toggle_optimizer(optimizer_d, 1)
+
 
         gen_image = self.generator(input_tensor)
         fake_image = gen_image * mask + masked_image
@@ -229,6 +242,7 @@ class Boundless_GAN(pl.LightningModule):
 
         if batch_idx % self.args.log_every == 0:
             image = wandb.Image(fake_image.cpu().detach().numpy().transpose(0, 2, 3, 1)[0], caption="Fake image")
+
             wandb.log({"example":  image})
             wandb.log({'Current generator loss': loss_g, 'Current discriminator loss': loss_d})
 
