@@ -16,23 +16,28 @@ class Flatten(nn.Module):
         return input.view(input.size(0), -1)
 
 
+class Clip(nn.Module):
+    def forward(self, input):
+        return torch.clamp(input, min=-1, max=1)
+
+
 class GatedConv(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, groups=1, bias=True,):
         super(GatedConv, self).__init__()
-        self.conv2d = nn.Conv2d(in_channels, 
-                                out_channels, 
-                                kernel_size, 
-                                stride, 
-                                padding, 
-                                dilation, 
-                                groups, 
+        self.conv2d = nn.Conv2d(in_channels,
+                                out_channels,
+                                kernel_size,
+                                stride,
+                                padding,
+                                dilation,
+                                groups,
                                 bias)
-        self.mask_conv2d = nn.Conv2d(in_channels, 
-                                     out_channels, 
-                                     kernel_size, 
-                                     stride, 
-                                     padding, 
-                                     dilation, 
+        self.mask_conv2d = nn.Conv2d(in_channels,
+                                     out_channels,
+                                     kernel_size,
+                                     stride,
+                                     padding,
+                                     dilation,
                                      groups,
                                      bias)
         self.sigmoid = nn.Sigmoid()
@@ -76,6 +81,7 @@ class Generator(pl.LightningModule):
         self.GC_5 = GatedConv(64, 16, 3, 1, 1)
 
         self.final_conv = nn.Conv2d(16, 3, kernel_size=3, stride=1, padding=1)
+        self.clip = Clip()
 
     def forward(self, x):
         out1 = self.cache_GC_1(x)
@@ -104,6 +110,7 @@ class Generator(pl.LightningModule):
         out = self.GC_5(out)
 
         out = self.final_conv(out)
+        out = self.clip(out)
         return out
 
 
