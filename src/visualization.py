@@ -70,6 +70,8 @@ def draw_images(
                     row += 1
                     col = 0
                 axarr[row, col].imshow(fakes[i, :, :, :])
+            if num >= number:
+                break
 
     f.savefig(path_to_save)
 
