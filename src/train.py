@@ -4,7 +4,9 @@ import pytorch_lightning as pl
 import wandb
 from torch.utils.data import DataLoader
 from model import Boundless_GAN
-from transforms import add_mask
+from transforms import MinMaxScaling, AddMask
+import torchvision.transforms as transforms
+
 from dataset import Places365Embedding
 from pathlib import Path
 from functools import partial
@@ -33,13 +35,15 @@ def main():
     wandb_logger = pl.loggers.WandbLogger(project="Boundless_HSE")
     wandb.init()
     trainer = pl.Trainer(max_epochs=args.epochs, logger=wandb_logger, accelerator="auto", devices="auto", strategy="auto")
-
+    transform_pipeline = transforms.Compose([
+        MinMaxScaling(),
+        AddMask(mask_percentage=0.25, inpainting=False),
+    ])
     dataset = Places365Embedding(
         Path(args.embeddings_path), Path(args.places_path), small=True, download=False,
-        transform=partial(add_mask, mask_percentage=0.25, inpainting=False),
+        transform=transform_pipeline,
     )
     train_loader = DataLoader(dataset, batch_size=args.batch_size, num_workers=28)
-
 
     trainer.fit(model, train_loader)
 
