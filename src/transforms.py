@@ -33,8 +33,8 @@ def add_mask(image, mask_percentage, inpainting=False):
 class MinMaxScaling:
     def __call__(self, image):
         image = F.to_tensor(image)
-#         min_val, max_val = image.min(), image.max()
-        min_val, max_val = 0, 255
+        min_val, max_val = image.min(), image.max()
+#         min_val, max_val = 0, 255
         image = (image - min_val) / (max_val - min_val)
         return F.to_pil_image(2 * image - 1)
 

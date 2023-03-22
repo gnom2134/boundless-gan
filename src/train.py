@@ -36,14 +36,14 @@ def main():
     wandb.init()
     trainer = pl.Trainer(max_epochs=args.epochs, logger=wandb_logger, accelerator="auto", devices="auto", strategy="auto")
     transform_pipeline = transforms.Compose([
-        MinMaxScaling(),
+#         MinMaxScaling(),
         AddMask(mask_percentage=0.25, inpainting=False),
     ])
     dataset = Places365Embedding(
         Path(args.embeddings_path), Path(args.places_path), small=True, download=False,
         transform=transform_pipeline,
     )
-    train_loader = DataLoader(dataset, batch_size=args.batch_size, num_workers=28)
+    train_loader = DataLoader(dataset, batch_size=args.batch_size, num_workers=1)
 
     trainer.fit(model, train_loader)
 

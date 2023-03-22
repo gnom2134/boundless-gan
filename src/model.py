@@ -1,7 +1,10 @@
 import torch
 import wandb
 import torch.nn as nn
+import numpy as np
 from torch.nn.functional import elu, instance_norm
+import torchvision.transforms.functional as F
+# from PIL import Image as PILImage
 
 import pytorch_lightning as pl
 
@@ -203,22 +206,67 @@ class Boundless_GAN(pl.LightningModule):
             'loss_D': loss_D
         }
 
+#     def training_step(self, batch, batch_idx):
+#         optimizer_g, optimizer_d = self.optimizers()
+
+#         input_tensor = torch.Tensor(batch["input_tensor"]).to(torch.float32)
+
+#         cond = torch.Tensor(batch["inception_embeds"])
+        
+#         real_image = input_tensor[:, :3, :, :]
+#         mask = input_tensor[:, 3:, :, :]
+#         masked_image = mask * real_image
+
+        
+#         self.toggle_optimizer(optimizer_g, 0)
+
+
+#         G_output = self.generator_step(input_tensor, real_image, masked_image, mask, cond)
+#         loss_g =  G_output['loss_G']
+#         self.log('Generator loss', loss_g)
+#         self.manual_backward(loss_g)
+#         optimizer_g.step()
+#         optimizer_g.zero_grad()
+#         self.untoggle_optimizer(optimizer_g)
+
+#         self.toggle_optimizer(optimizer_d, 1)
+
+
+#         gen_image = self.generator(input_tensor)
+#         fake_image = gen_image * (1 - mask) + masked_image
+
+#         D_output = self.discriminator_step(real_image, fake_image, mask, cond)
+#         loss_d = D_output['loss_D']
+#         self.log('Discriminator loss', loss_d)
+#         self.manual_backward(loss_d)
+#         optimizer_d.step()
+#         optimizer_d.zero_grad()
+#         self.untoggle_optimizer(optimizer_d)
+
+#         if batch_idx % self.args.log_every == 0:
+#             image_raw = fake_image.cpu().detach().numpy().transpose(0, 2, 3, 1)[0]
+# #             transforms.Compose([lambda x: (x + 1) / 2])
+
+#             image = wandb.Image((image_raw+1)/2, caption="Fake image")
+
+#             wandb.log({"example":  image})
+#             wandb.log({'Current generator loss': loss_g, 'Current discriminator loss': loss_d})
+    
     def training_step(self, batch, batch_idx):
         optimizer_g, optimizer_d = self.optimizers()
 
-        input_tensor = torch.Tensor(batch["input_tensor"]).to(torch.float32)
-
+        input_tensor = torch.Tensor(batch["input_tensor"])
         cond = torch.Tensor(batch["inception_embeds"])
         
         real_image = input_tensor[:, :3, :, :]
-        mask = input_tensor[:, 3:, :, :]
-        masked_image = mask * real_image
+        mask = 1 - input_tensor[:, 3:, :, :]
+        masked_image = (1 - mask) * real_image
 
+        input_tensor_masked = torch.cat((masked_image, mask), dim=1)
         
         self.toggle_optimizer(optimizer_g, 0)
 
-
-        G_output = self.generator_step(input_tensor, real_image, masked_image, mask, cond)
+        G_output = self.generator_step(input_tensor_masked, real_image, masked_image, mask, cond)
         loss_g =  G_output['loss_G']
         self.log('Generator loss', loss_g)
         self.manual_backward(loss_g)
@@ -226,14 +274,14 @@ class Boundless_GAN(pl.LightningModule):
         optimizer_g.zero_grad()
         self.untoggle_optimizer(optimizer_g)
 
+
         self.toggle_optimizer(optimizer_d, 1)
 
-
-        gen_image = self.generator(input_tensor)
+        gen_image = self.generator(input_tensor_masked)
         fake_image = gen_image * mask + masked_image
 
         D_output = self.discriminator_step(real_image, fake_image, mask, cond)
-        loss_d = D_output['loss_D']
+        loss_d =  D_output['loss_D']
         self.log('Discriminator loss', loss_d)
         self.manual_backward(loss_d)
         optimizer_d.step()
@@ -241,11 +289,14 @@ class Boundless_GAN(pl.LightningModule):
         self.untoggle_optimizer(optimizer_d)
 
         if batch_idx % self.args.log_every == 0:
-            image = wandb.Image(fake_image.cpu().detach().numpy().transpose(0, 2, 3, 1)[0], caption="Fake image")
-
+            raw_image = fake_image.cpu().detach().numpy().transpose(0, 2, 3, 1)[0]
+            image = wandb.Image(raw_image, caption="Fake image")
             wandb.log({"example":  image})
             wandb.log({'Current generator loss': loss_g, 'Current discriminator loss': loss_d})
-
+            
+#             pil_image = PILImage.fromarray(((raw_image + 1) / 2 * 255).astype(np.uint32), mode="RGB")
+#             print(raw_image.shape, ((raw_image + 1) / 2 * 255).astype(np.uint32))
+            
     def configure_optimizers(self):
         optimizer_G = torch.optim.Adam(self.generator.parameters(), lr=self.args.lr_g, betas=(self.args.b1, self.args.b2))
         optimizer_D = torch.optim.Adam(self.discriminator.parameters(), lr=self.args.lr_d, betas=(self.args.b1, self.args.b2))
