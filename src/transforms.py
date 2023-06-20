@@ -3,6 +3,7 @@ import torchvision
 import numpy as np
 from functools import partial
 import torchvision.transforms.functional as F
+import torchvision.transforms as transforms
 
 
 def add_mask(image, mask_percentage, inpainting=False):
@@ -13,7 +14,7 @@ def add_mask(image, mask_percentage, inpainting=False):
         inpainting (bool): If True, the mask will be a square in the center of the image.
     Returns:
             torch.Tensor: Image with the mask."""
-    image = F.pil_to_tensor(image)
+    image = F.to_tensor(image)
     num_channels, height, width = image.shape
     mask = torch.ones((height, width), dtype=torch.bool)
     mask_width = int(width * mask_percentage)
@@ -29,10 +30,33 @@ def add_mask(image, mask_percentage, inpainting=False):
     return torch.cat([image, mask.reshape(1, height, width)], dim=0)
 
 
+class MinMaxScaling:
+    def __call__(self, image):
+        image = F.to_tensor(image)
+        min_val, max_val = image.min(), image.max()
+#         min_val, max_val = 0, 255
+        image = (image - min_val) / (max_val - min_val)
+        return F.to_pil_image(2 * image - 1)
+
+class AddMask:
+    def __init__(self, mask_percentage, inpainting=False):
+        self.mask_percentage = mask_percentage
+        self.inpainting = inpainting
+
+    def __call__(self, image):
+        return add_mask(image, self.mask_percentage, self.inpainting)
+
+
+# Define the transformation pipeline
+transform_pipeline = transforms.Compose([
+    MinMaxScaling(),
+    AddMask(mask_percentage=0.25, inpainting=False),
+])
+
 # Usage example
 places365_dataset = torchvision.datasets.Places365(
     "./data/pt_dataset/",
     small=True,
     download=False,
-    transform=partial(add_mask, mask_percentage=0.25, inpainting=False),
+    transform=transform_pipeline,
 )
